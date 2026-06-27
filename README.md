@@ -17,7 +17,7 @@
 
 ## 🌐 Live demo — the twin in your browser
 
-[![WorldGraph × SuperSplat — live 3D demo](docs/demo.png)](https://ruvnet.github.io/worldgraph/)
+[![WorldGraph × SuperSplat — live 3D demo](https://raw.githubusercontent.com/ruvnet/worldgraph/main/docs/demo.png)](https://ruvnet.github.io/worldgraph/)
 
 **▶ [Open the live demo →](https://ruvnet.github.io/worldgraph/)**
 

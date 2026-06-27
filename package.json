@@ -1,6 +1,6 @@
 {
   "name": "worldgraphs",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "AI coding agent for building digital twins with worldgraph — architect, implement, review, and test the Rust spatial/sensor-graph crates",
   "type": "module",
   "bin": {
