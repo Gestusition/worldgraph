@@ -3,309 +3,341 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>WorldGraph × SuperSplat — WASM bridge harness</title>
+<title>WorldGraph × SuperSplat — semantic twin over a 3D splat</title>
 <style>
   :root {
-    --bg: #0b0e14; --panel: #11161f; --panel2: #161c28; --line: #232c3d;
-    --text: #d7e0ee; --muted: #7f8ca3; --accent: #2fd6c6; --warn: #ffd166;
-    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    --bg0:#05070d; --bg1:#0a0f1c; --glass:rgba(15,21,34,.62); --glass2:rgba(20,28,44,.72);
+    --line:rgba(120,150,200,.16); --line2:rgba(120,150,200,.28);
+    --text:#eaf0fb; --muted:#8a98b5; --accent:#34e3d2; --accent2:#7c5cff; --warn:#ffd166;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); }
-  #app { display: grid; grid-template-columns: 1fr 340px; grid-template-rows: auto 1fr; height: 100vh; }
-  header { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px;
-    padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  header h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: .2px; }
-  header .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line);
-    padding: 2px 8px; border-radius: 999px; }
-  header .spacer { flex: 1; }
-  header .stat { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-  header .stat b { color: var(--accent); }
-  #stage { position: relative; overflow: hidden; }
-  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
-  #legend { position: absolute; left: 14px; bottom: 14px; background: rgba(17,22,31,.86);
-    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px); }
-  #legend .row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin: 3px 0; }
-  #legend .sw { width: 12px; height: 12px; border-radius: 3px; }
-  #toolbar { position: absolute; right: 14px; top: 14px; display: flex; gap: 8px; }
-  button { font: inherit; font-size: 12px; color: var(--text); background: var(--panel2);
-    border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; cursor: pointer; }
-  button:hover { border-color: var(--accent); color: #fff; }
-  aside { background: var(--panel); border-left: 1px solid var(--line); padding: 16px; overflow-y: auto; }
-  aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 0 0 10px; }
-  .empty { color: var(--muted); font-size: 13px; line-height: 1.5; }
-  .card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
-  .card .kind { display: inline-block; font-family: var(--mono); font-size: 11px; color: #0b0e14;
-    background: var(--accent); padding: 1px 7px; border-radius: 5px; margin-bottom: 8px; }
-  .card h3 { margin: 0 0 6px; font-size: 15px; }
-  .card .summary { font-size: 13px; color: var(--text); line-height: 1.5; margin: 0 0 12px; }
-  .kv { display: grid; grid-template-columns: 132px 1fr; gap: 6px 10px; font-size: 12.5px; align-items: start; }
-  .kv .k { color: var(--muted); font-family: var(--mono); font-size: 11px; line-height: 1.4;
-    overflow-wrap: anywhere; }
-  .kv .v { color: var(--text); overflow-wrap: anywhere; }
-  .evidence { margin-top: 12px; }
-  .evidence .e { font-family: var(--mono); font-size: 11.5px; color: var(--warn);
-    background: rgba(255,209,102,.08); border: 1px solid rgba(255,209,102,.2);
-    border-radius: 5px; padding: 3px 7px; margin: 4px 4px 0 0; display: inline-block; }
-  .chip { display: block; width: 100%; text-align: left; margin: 6px 0; padding: 9px 11px;
-    background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
-  .chip:hover { border-color: var(--accent); }
-  .chip .ck { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
-  .chip .ct { font-size: 13px; color: var(--text); margin-top: 2px; }
-  #status { grid-column: 1 / -1; }
-  .banner { font-family: var(--mono); font-size: 12px; padding: 8px 18px; }
-  .banner.err { background: #3a1620; color: #ff8095; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; overflow:hidden; background:var(--bg0); color:var(--text); font-family:var(--font); }
+  #gl { position:fixed; inset:0; display:block; }
+  #vignette { position:fixed; inset:0; pointer-events:none;
+    background: radial-gradient(120% 90% at 50% 8%, rgba(124,92,255,.10), transparent 55%),
+                radial-gradient(140% 120% at 50% 120%, rgba(0,0,0,.65), transparent 60%);
+    mix-blend-mode:screen; }
+  #scrim { position:fixed; inset:0; pointer-events:none; box-shadow: inset 0 0 240px rgba(0,0,0,.7); }
+
+  header { position:fixed; top:0; left:0; right:0; z-index:5; display:flex; align-items:center; gap:14px;
+    padding:14px 20px; background:linear-gradient(180deg, rgba(5,7,13,.82), rgba(5,7,13,0)); pointer-events:none; }
+  header .brand { font-size:15px; font-weight:700; letter-spacing:.3px; }
+  header .brand .x { color:var(--accent); margin:0 4px; }
+  header .pill { font-size:11px; color:var(--muted); border:1px solid var(--line2); padding:3px 10px;
+    border-radius:999px; background:var(--glass); backdrop-filter:blur(10px); }
+  header .spacer { flex:1; }
+  header .stat { font-family:var(--mono); font-size:11.5px; color:var(--muted); }
+  header .stat b { color:var(--accent); font-weight:600; }
+  header .dot { width:7px; height:7px; border-radius:50%; background:var(--accent); display:inline-block;
+    margin-right:5px; box-shadow:0 0 10px var(--accent); vertical-align:middle; }
+
+  .panel { position:fixed; z-index:6; background:var(--glass); border:1px solid var(--line);
+    border-radius:16px; backdrop-filter:blur(18px) saturate(1.2); -webkit-backdrop-filter:blur(18px) saturate(1.2);
+    box-shadow:0 18px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04); }
+  #side { top:64px; right:18px; bottom:18px; width:332px; padding:18px; overflow-y:auto; }
+  #side::-webkit-scrollbar { width:8px; } #side::-webkit-scrollbar-thumb { background:var(--line2); border-radius:8px; }
+  h2 { font-size:11px; text-transform:uppercase; letter-spacing:1.6px; color:var(--muted); margin:0 0 12px; font-weight:600; }
+  .empty { color:var(--muted); font-size:13px; line-height:1.6; }
+  .card { background:var(--glass2); border:1px solid var(--line2); border-radius:13px; padding:16px; animation:pop .25s ease; }
+  @keyframes pop { from{opacity:0; transform:translateY(6px) scale(.99);} to{opacity:1; transform:none;} }
+  .card .kind { display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:10.5px;
+    color:#06121a; background:linear-gradient(90deg,var(--accent),#6fe9ff); padding:3px 9px; border-radius:6px;
+    margin-bottom:10px; font-weight:600; box-shadow:0 0 18px rgba(52,227,210,.35); }
+  .card h3 { margin:0 0 7px; font-size:16px; letter-spacing:.2px; }
+  .card .summary { font-size:13px; color:#cdd7ea; line-height:1.55; margin:0 0 14px; }
+  .kv { display:grid; grid-template-columns:128px 1fr; gap:7px 10px; font-size:12.5px; align-items:start; }
+  .kv .k { color:var(--muted); font-family:var(--mono); font-size:11px; line-height:1.45; overflow-wrap:anywhere; }
+  .kv .v { color:var(--text); overflow-wrap:anywhere; }
+  .evidence { margin-top:14px; } .evidence h2 { margin-bottom:8px; }
+  .evidence .e { font-family:var(--mono); font-size:11px; color:var(--warn);
+    background:rgba(255,209,102,.07); border:1px solid rgba(255,209,102,.22); border-radius:6px;
+    padding:3px 8px; margin:0 5px 5px 0; display:inline-block; }
+  .chip { display:block; width:100%; text-align:left; margin:7px 0; padding:11px 13px; color:inherit;
+    background:var(--glass2); border:1px solid var(--line); border-radius:11px; cursor:pointer; transition:.15s; }
+  .chip:hover { border-color:var(--accent); transform:translateX(2px); box-shadow:0 0 0 1px rgba(52,227,210,.25); }
+  .chip .ck { font-family:var(--mono); font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .chip .ct { font-size:13px; margin-top:3px; }
+
+  #legend { left:18px; bottom:18px; padding:13px 15px; }
+  #legend .row { display:flex; align-items:center; gap:9px; font-size:12px; color:#b9c4da; margin:4px 0; }
+  #legend .sw { width:11px; height:11px; border-radius:3px; box-shadow:0 0 10px currentColor; }
+
+  #toolbar { left:50%; transform:translateX(-50%); bottom:22px; z-index:6; display:flex; gap:10px; padding:8px; border-radius:14px; }
+  button { font:inherit; font-size:12.5px; color:var(--text); cursor:pointer; border-radius:10px; padding:9px 15px;
+    background:var(--glass2); border:1px solid var(--line2); transition:.15s; backdrop-filter:blur(10px); }
+  button:hover { border-color:var(--accent); color:#fff; box-shadow:0 0 22px rgba(52,227,210,.25); }
+  button.primary { background:linear-gradient(90deg, rgba(52,227,210,.18), rgba(124,92,255,.18)); }
+
+  #hint { position:fixed; left:50%; transform:translateX(-50%); top:60px; z-index:6; font-size:12px;
+    color:var(--muted); background:var(--glass); border:1px solid var(--line); padding:6px 14px; border-radius:999px;
+    backdrop-filter:blur(10px); opacity:0; transition:opacity .4s; }
+  #boot { position:fixed; inset:0; z-index:20; display:grid; place-items:center; background:var(--bg0); transition:opacity .6s; }
+  #boot .ring { width:46px; height:46px; margin:0 auto 16px; border-radius:50%; border:3px solid rgba(120,150,200,.18);
+    border-top-color:var(--accent); animation:spin 1s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #boot .t { font-size:13px; color:var(--muted); font-family:var(--mono); text-align:center; }
+  .banner { position:fixed; top:0; left:0; right:0; z-index:30; font-family:var(--mono); font-size:12px;
+    padding:10px 18px; background:#3a1620; color:#ff8095; }
 </style>
 </head>
 <body>
-<div id="app">
-  <header>
-    <h1>WorldGraph <span style="color:var(--muted)">×</span> SuperSplat</h1>
-    <span class="tag">WASM bridge · top-down ENU view</span>
-    <div class="spacer"></div>
-    <span class="stat">nodes <b id="s-nodes">–</b></span>
-    <span class="stat">primitives <b id="s-prims">–</b></span>
-    <span class="stat" id="s-wasm">wasm <b>loading…</b></span>
-  </header>
-  <div id="stage">
-    <canvas id="c"></canvas>
-    <div id="toolbar">
-      <button id="btn-walk">▶ Simulate person + OccWorld path</button>
-      <button id="btn-reset">↺ Reset</button>
-    </div>
-    <div id="legend"></div>
-  </div>
-  <aside>
-    <h2>Click-to-audit</h2>
-    <div id="audit"><p class="empty">Click any element on the floor to see <b>why the system believes it exists</b> — the privacy-aware provenance card assembled by the Rust core.</p></div>
-    <h2 style="margin-top:22px">Beliefs &amp; events</h2>
-    <div id="abstract" class="empty">—</div>
-  </aside>
+<canvas id="gl"></canvas>
+<div id="vignette"></div>
+<div id="scrim"></div>
+
+<header>
+  <span class="brand">WorldGraph<span class="x">×</span>SuperSplat</span>
+  <span class="pill">semantic digital twin · WebAssembly · no backend</span>
+  <span class="spacer"></span>
+  <span class="stat"><span class="dot"></span>wasm <b id="s-wasm">…</b></span>
+  <span class="stat">nodes <b id="s-nodes">–</b></span>
+  <span class="stat">primitives <b id="s-prims">–</b></span>
+</header>
+
+<div id="hint">drag to orbit · scroll to zoom · click an element to audit it</div>
+
+<aside id="side" class="panel">
+  <h2>Click-to-audit</h2>
+  <div id="audit"><p class="empty">Click any element in the scene to see <b style="color:#cdd7ea">why the system believes it exists</b> — the privacy-aware provenance card assembled in Rust, inside the browser.</p></div>
+  <h2 style="margin-top:24px">Beliefs &amp; events</h2>
+  <div id="abstract" class="empty">—</div>
+</aside>
+
+<div id="legend" class="panel"></div>
+
+<div id="toolbar" class="panel">
+  <button id="btn-walk" class="primary">▶ Simulate person + OccWorld path</button>
+  <button id="btn-rot">⟲ Auto-orbit</button>
+  <button id="btn-reset">↺ Reset</button>
 </div>
 
+<div id="boot"><div><div class="ring"></div><div class="t" id="boot-t">loading WASM bridge…</div></div></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+
 <script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import init, { WorldgraphBridge } from './worldgraph-wasm/worldgraph_wasm.js';
 
 const $ = (id) => document.getElementById(id);
-const canvas = $('c');
-const ctx = canvas.getContext('2d');
+let bridge = null, walkTimer = null, personId = 0n, overlayPrims = [];
 
-// ---- ENU top-down camera (PlayCanvas pos is [x=east, y=up, z=-north]) ----
-// We project to screen using east→x, north→y(up). One world metre = PPM px.
-let PPM = 70, originX = 0, originY = 0;
-const enuFromPrim = (p) => ({ e: p.position[0], n: -p.position[2] }); // undo z=-north
-const toScreen = (e, n) => [originX + e * PPM, originY - n * PPM];
-const rgba = (c) => `rgba(${(c[0]*255)|0},${(c[1]*255)|0},${(c[2]*255)|0},${c[3]})`;
+const canvas = $('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-let bridge = null, prims = [], picks = [], hover = -1, overlay = [], walkTimer = null, personId = 0n;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04060c);
+scene.fog = new THREE.FogExp2(0x05070d, 0.018);
 
-function fit() {
-  const r = canvas.parentElement.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = r.width * dpr; canvas.height = r.height * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  // Centre the scene: bounds over all primitives.
-  const xs = [], ys = [];
-  for (const p of prims) { const {e,n} = enuFromPrim(p); xs.push(e); ys.push(n); if (p.to){ xs.push(p.to[0]); ys.push(-p.to[2]); } }
-  const minE = Math.min(...xs, 0), maxE = Math.max(...xs, 5);
-  const minN = Math.min(...ys, 0), maxN = Math.max(...ys, 4);
-  const cw = r.width - 80, ch = r.height - 80;
-  PPM = Math.max(24, Math.min(cw / (maxE - minE + 2), ch / (maxN - minN + 2)));
-  originX = (r.width - (maxE + minE) * PPM) / 2;
-  originY = (r.height + (maxN + minN) * PPM) / 2;
-  draw();
+const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 400);
+camera.position.set(7.5, 8.5, 14);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.target.set(4.5, 1.0, -2);
+controls.maxPolarAngle = Math.PI * 0.49; controls.minDistance = 4; controls.maxDistance = 60;
+let autoRotate = false;
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+scene.add(new THREE.HemisphereLight(0x9fc0ff, 0x0a0e18, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.25); key.position.set(6, 12, 6); scene.add(key);
+const fill = new THREE.DirectionalLight(0x6f7cff, 0.45); fill.position.set(-8, 4, -6); scene.add(fill);
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120),
+  new THREE.MeshStandardMaterial({ color:0x070b14, roughness:0.55, metalness:0.5 }));
+floor.rotation.x = -Math.PI/2; floor.position.y = -0.01; scene.add(floor);
+const grid = new THREE.GridHelper(120, 120, 0x2a3a66, 0x141d33);
+grid.material.transparent = true; grid.material.opacity = 0.5; scene.add(grid);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.5, 0.55, 0.9));
+composer.addPass(new OutputPass());
+
+const worldGroup = new THREE.Group(); scene.add(worldGroup);
+const raycaster = new THREE.Raycaster(); const pointer = new THREE.Vector2();
+let hovered = null;
+const col = (c) => new THREE.Color(c[0], c[1], c[2]);
+
+function clearWorld() {
+  worldGroup.traverse(o => { if (o.geometry) o.geometry.dispose();
+    if (o.material) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose()); });
+  worldGroup.clear();
 }
 
-function drawGrid() {
-  const r = canvas.parentElement.getBoundingClientRect();
-  ctx.lineWidth = 1; ctx.strokeStyle = '#161d29';
-  for (let e = -10; e <= 30; e++) { const [x] = toScreen(e, 0); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, r.height); ctx.stroke(); }
-  for (let n = -10; n <= 30; n++) { const [, y] = toScreen(0, n); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(r.width, y); ctx.stroke(); }
-  // origin marker
-  const [ox, oy] = toScreen(0, 0);
-  ctx.strokeStyle = '#33415a';
-  ctx.beginPath(); ctx.moveTo(ox-8, oy); ctx.lineTo(ox+8, oy); ctx.moveTo(ox, oy-8); ctx.lineTo(ox, oy+8); ctx.stroke();
-  ctx.fillStyle = '#4a5b75'; ctx.font = '11px var(--mono)'; ctx.fillText('ENU origin (E→, N↑)', ox + 10, oy - 8);
-}
-
-function shapePath(p) {
-  const {e, n} = enuFromPrim(p);
-  const [x, y] = toScreen(e, n);
-  picks.push({ id: p.id, kind: p.kind, x, y, p });
-  ctx.lineWidth = 2;
-  if (p.shape === 'line' && p.to) {
-    const [x2, y2] = toScreen(p.to[0], -p.to[2]);
-    ctx.strokeStyle = rgba(p.color); ctx.lineWidth = p.kind === 'wall' ? 5 : 3;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2); ctx.stroke();
-    picks[picks.length-1].seg = [x, y, x2, y2];
-    return;
-  }
-  if (p.shape === 'box') {
-    const w = Math.abs(p.scale[0]) * PPM, h = Math.abs(p.scale[2]) * PPM;
-    ctx.fillStyle = rgba(p.color); ctx.strokeStyle = rgba([p.color[0],p.color[1],p.color[2],Math.min(1,p.color[3]+0.5)]);
-    ctx.beginPath(); ctx.rect(x - w/2, y - h/2, w, h); ctx.fill(); ctx.stroke();
-    picks[picks.length-1].box = [x - w/2, y - h/2, w, h];
-    return;
-  }
-  // circular footprints + point markers
-  let radius = 6;
-  if (p.shape === 'cylinder') radius = Math.abs(p.scale[0]) / 2 * PPM;
-  else if (p.shape === 'capsule') radius = Math.abs(p.scale[0]) / 2 * PPM;
-  else if (p.shape === 'sphere') radius = Math.max(7, Math.abs(p.scale[0]) * PPM);
-  ctx.fillStyle = rgba(p.color); ctx.strokeStyle = rgba([p.color[0],p.color[1],p.color[2],1]);
-  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-  picks[picks.length-1].r = Math.max(radius, 9);
-}
-
-function draw() {
-  const r = canvas.parentElement.getBoundingClientRect();
-  ctx.clearRect(0, 0, r.width, r.height);
-  drawGrid();
-  picks = [];
-  // Draw filled footprints first (rooms/zones), then lines, then markers, then overlay.
-  const order = (p) => ({ room:0, zone:1, doorway:2, wall:3, object_anchor:4, sensor:5, person_track:6, trajectory:7 }[p.kind] ?? 4);
-  const ordered = [...prims].sort((a,b) => order(a) - order(b));
-  for (const p of ordered) shapePath(p);
-  for (const p of overlay) shapePath(p);
-  // labels for non-line markers
-  ctx.font = '11px var(--mono)'; ctx.textBaseline = 'middle';
-  for (const pk of picks) {
-    if (pk.seg) continue;
-    if (['sensor','person_track','object_anchor'].includes(pk.kind)) {
-      ctx.fillStyle = '#aeb9cc'; ctx.fillText(pk.p.label, pk.x + (pk.r||8) + 4, pk.y);
-    } else if (pk.box && (pk.kind === 'room')) {
-      ctx.fillStyle = '#dfe7f2'; ctx.font = '12px var(--font)';
-      ctx.fillText(pk.p.label, pk.box[0] + 8, pk.box[1] + 14); ctx.font = '11px var(--mono)';
+function addPrimitive(p) {
+  const c = col(p.color), a = p.color[3];
+  if (p.shape === 'line') {
+    const to = p.to || p.position;
+    const ln = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...p.position), new THREE.Vector3(...to)]),
+      new THREE.LineBasicMaterial({ color:c, transparent:true, opacity:Math.max(a,0.6) }));
+    ln.userData = { p, audit:p.kind!=='trajectory' }; worldGroup.add(ln);
+    if (p.kind === 'wall') {
+      // low translucent wall slab so rooms read as enclosed volumes, not glow bars
+      const dir = new THREE.Vector3(...to).sub(new THREE.Vector3(...p.position)); const len = dir.length();
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(len, 1.2, 0.05),
+        new THREE.MeshStandardMaterial({ color:0x9aa6bd, transparent:true, opacity:0.07, roughness:0.5, metalness:0.2, side:THREE.DoubleSide, depthWrite:false }));
+      const mid = new THREE.Vector3(...p.position).addScaledVector(dir,0.5); slab.position.set(mid.x, 0.6, mid.z);
+      slab.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0), dir.clone().normalize());
+      slab.userData = { p, audit:true }; worldGroup.add(slab);
+      ln.material.opacity = 0.35;
     }
+    return;
   }
-  // hover ring
-  if (hover >= 0 && picks[hover]) {
-    const pk = picks[hover];
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([4,3]);
-    if (pk.box) ctx.strokeRect(pk.box[0]-3, pk.box[1]-3, pk.box[2]+6, pk.box[3]+6);
-    else if (pk.r) { ctx.beginPath(); ctx.arc(pk.x, pk.y, pk.r+4, 0, Math.PI*2); ctx.stroke(); }
-    ctx.setLineDash([]);
+  let geo, emissive = 0.0;
+  if (p.shape === 'box') geo = new THREE.BoxGeometry(p.scale[0], p.scale[1], p.scale[2]);
+  else if (p.shape === 'sphere') { geo = new THREE.SphereGeometry(Math.max(p.scale[0]/2,0.16), 32, 24); emissive = 1.15; }
+  else if (p.shape === 'cylinder') geo = new THREE.CylinderGeometry(p.scale[0]/2, p.scale[0]/2, p.scale[1], 48, 1, true);
+  else if (p.shape === 'capsule') { const r=p.scale[0]/2, h=Math.max(p.scale[1]-2*r,0.1); geo = new THREE.CapsuleGeometry(r, h, 8, 24); emissive = 0.55; }
+  else geo = new THREE.BoxGeometry(p.scale[0], p.scale[1], p.scale[2]);
+
+  const isVolume = (p.kind === 'room' || p.kind === 'zone');
+  // Volumes read as faint glass enclosures; markers stay vivid + emissive.
+  const opacity = isVolume ? 0.07 : a;
+  const transparent = p.transparent || opacity < 1;
+  const mat = new THREE.MeshStandardMaterial({
+    color:c, transparent, opacity,
+    metalness:isVolume?0.0:0.1, roughness:isVolume?0.65:0.4,
+    emissive:c, emissiveIntensity:isVolume?0.0:emissive,
+    side:isVolume ? THREE.DoubleSide : THREE.FrontSide, depthWrite:!transparent });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(...p.position); mesh.userData = { p, audit:true }; worldGroup.add(mesh);
+
+  if (isVolume) {
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({ color:c.clone().lerp(new THREE.Color(0xffffff),0.35), transparent:true, opacity:0.9 }));
+    edges.position.copy(mesh.position); edges.userData = { p, audit:true }; worldGroup.add(edges);
+  }
+  if (p.shape === 'sphere' || p.shape === 'capsule') {
+    const rr = Math.max(p.scale[0], 0.32);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(rr*0.85, rr, 48),
+      new THREE.MeshBasicMaterial({ color:c, transparent:true, opacity:0.7, side:THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI/2; ring.position.set(p.position[0], 0.02, p.position[2]); worldGroup.add(ring);
   }
 }
 
-function pickAt(mx, my) {
-  // markers/circles take priority, then boxes (topmost = drawn last).
-  for (let i = picks.length - 1; i >= 0; i--) {
-    const pk = picks[i];
-    if (pk.r && Math.hypot(mx - pk.x, my - pk.y) <= pk.r + 4) return i;
-  }
-  for (let i = picks.length - 1; i >= 0; i--) {
-    const pk = picks[i];
-    if (pk.box) { const [bx,by,bw,bh] = pk.box; if (mx>=bx && mx<=bx+bw && my>=by && my<=by+bh) return i; }
-  }
-  return -1;
+function rebuild() {
+  clearWorld();
+  const prims = bridge.getRenderPrimitives();
+  for (const p of prims) addPrimitive(p);
+  for (const p of overlayPrims) addPrimitive(p);
+  $('s-nodes').textContent = bridge.nodeCount();
+  $('s-prims').textContent = prims.length + overlayPrims.length;
+  buildAbstract();
 }
 
+const esc = (s) => String(s).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
 function showAudit(id) {
   const card = bridge.getProvenance(BigInt(id));
   if (!card) { $('audit').innerHTML = '<p class="empty">No provenance for this element.</p>'; return; }
-  const fields = card.fields.map(f => `<div class="k">${f.key}</div><div class="v">${f.value}</div>`).join('');
+  const fields = card.fields.map(f => `<div class="k">${esc(f.key)}</div><div class="v">${esc(f.value)}</div>`).join('');
   const ev = card.evidence.length
-    ? `<div class="evidence"><h2 style="margin-bottom:6px">Evidence chain</h2>${card.evidence.map(e=>`<span class="e">${e}</span>`).join('')}</div>` : '';
-  $('audit').innerHTML = `<div class="card"><span class="kind">${card.kind}</span>
-    <h3>${card.title}</h3><p class="summary">${card.summary}</p>
+    ? `<div class="evidence"><h2>Evidence chain</h2>${card.evidence.map(e=>`<span class="e">${esc(e)}</span>`).join('')}</div>` : '';
+  $('audit').innerHTML = `<div class="card"><span class="kind">◆ ${esc(card.kind)}</span>
+    <h3>${esc(card.title)}</h3><p class="summary">${esc(card.summary)}</p>
     <div class="kv">${fields}</div>${ev}</div>`;
 }
-
-function refresh() {
-  prims = bridge.getRenderPrimitives();
-  $('s-nodes').textContent = bridge.nodeCount();
-  $('s-prims').textContent = prims.length + overlay.length;
-  buildAbstract();
-  fit();
-}
-
 function buildAbstract() {
-  // Abstract nodes (beliefs/events/rf-links) carry provenance but have no
-  // geometry — surface them as clickable rows so their audit card is reachable.
   const drawable = new Set(['room','zone','wall','doorway','sensor','person_track','object_anchor']);
   const all = bridge.getAllNodes().filter(n => !drawable.has(n.kind));
   if (!all.length) { $('abstract').innerHTML = '<span class="empty">none</span>'; return; }
   $('abstract').innerHTML = all.map(n => {
-    const t = n.kind === 'semantic_state' ? n.statement
-            : n.kind === 'event' ? n.event_type : `${n.kind} #${n.id}`;
-    return `<button class="chip" data-id="${n.id}"><div class="ck">${n.kind}</div><div class="ct">${t}</div></button>`;
+    const t = n.kind==='semantic_state' ? n.statement : n.kind==='event' ? n.event_type : `${n.kind} #${n.id}`;
+    return `<button class="chip" data-id="${n.id}"><div class="ck">${esc(n.kind.replace('_',' '))}</div><div class="ct">${esc(t)}</div></button>`;
   }).join('');
-  $('abstract').querySelectorAll('.chip').forEach(b =>
-    b.addEventListener('click', () => showAudit(Number(b.dataset.id))));
+  $('abstract').querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => showAudit(Number(b.dataset.id))));
 }
 
-function buildLegend() {
-  const items = [
-    ['Room', '#00ff0040'], ['Zone', '#00e6ff30'], ['Doorway', '#ffd91a80'],
-    ['Wall', '#9999a6'], ['WiFi CSI', '#ff3333'], ['mmWave', '#ff9919'],
-    ['UWB', '#3373ff'], ['Person (anon)', '#00d9ff'], ['OccWorld path', '#33cc33'],
-  ];
-  $('legend').innerHTML = items.map(([l,c]) => `<div class="row"><span class="sw" style="background:${c}"></span>${l}</div>`).join('');
-}
-
-// ---- interaction ----
-canvas.addEventListener('mousemove', (ev) => {
-  const r = canvas.getBoundingClientRect();
-  const h = pickAt(ev.clientX - r.left, ev.clientY - r.top);
-  if (h !== hover) { hover = h; canvas.style.cursor = h >= 0 ? 'pointer' : 'crosshair'; draw(); }
-});
-canvas.addEventListener('click', (ev) => {
-  const r = canvas.getBoundingClientRect();
-  const h = pickAt(ev.clientX - r.left, ev.clientY - r.top);
-  if (h >= 0) showAudit(picks[h].id);
-});
-window.addEventListener('resize', fit);
-
-$('btn-walk').addEventListener('click', () => {
-  if (walkTimer) return;
-  // Move a live person east across the rooms and draw an OccWorld forecast ahead.
-  let e = 1.0; const n = 2.0;
-  personId = bridge.upsertPerson(0n, 99n, e, n, 0.0);
-  walkTimer = setInterval(() => {
-    e += 0.4;
-    if (e > 8.5) { clearInterval(walkTimer); walkTimer = null; return; }
-    bridge.upsertPerson(personId, 99n, e, n, 0.0);
-    const steps = [0.5,1.0,1.5,2.0].map((d,i) => ({ point: { east_m: e+d, north_m: n + (i%2?0.3:-0.2), up_m: 0 }, probability: 0.9 - i*0.2 }));
-    overlay = bridge.trajectoryOverlay(99n, e, n, 0.0, steps);
-    prims = bridge.getRenderPrimitives();
-    $('s-prims').textContent = prims.length + overlay.length;
-    draw();
-  }, 220);
-});
-$('btn-reset').addEventListener('click', async () => {
-  if (walkTimer) { clearInterval(walkTimer); walkTimer = null; }
-  overlay = []; await boot();
-});
-
-// Test hook: audit the first rendered element of a given kind (for E2E).
 window.__auditKind = (kind) => {
-  const pk = picks.find(p => p.kind === kind);
-  if (pk) { showAudit(pk.id); return true; }
-  return false;
+  const m = worldGroup.children.find(o => o.userData?.p?.kind === kind && o.userData?.audit);
+  if (m) { showAudit(m.userData.p.id); return true; } return false;
 };
 
-async function boot() {
-  const rvf = await (await fetch('./sample-twin.json')).text();
-  bridge = new WorldgraphBridge(rvf);
-  overlay = [];
-  refresh();
-  buildLegend();
+function setPointer(ev) { const r = canvas.getBoundingClientRect();
+  pointer.x = ((ev.clientX-r.left)/r.width)*2-1; pointer.y = -((ev.clientY-r.top)/r.height)*2+1; }
+function pick() { raycaster.setFromCamera(pointer, camera);
+  return raycaster.intersectObjects(worldGroup.children, false).find(h => h.object.userData?.audit)?.object || null; }
+canvas.addEventListener('pointermove', (ev) => {
+  setPointer(ev); const o = pick();
+  if (o !== hovered) {
+    if (hovered && hovered.userData._ei !== undefined) hovered.material.emissiveIntensity = hovered.userData._ei;
+    hovered = o; canvas.style.cursor = o ? 'pointer' : 'grab';
+    if (o && o.material && o.material.emissiveIntensity !== undefined) {
+      o.userData._ei = o.material.emissiveIntensity; o.material.emissiveIntensity = Math.max(o.material.emissiveIntensity, 0.7); }
+  }
+});
+canvas.addEventListener('click', (ev) => { setPointer(ev); const o = pick(); if (o) showAudit(o.userData.p.id); });
+
+$('btn-rot').addEventListener('click', () => { autoRotate = !autoRotate; $('btn-rot').style.borderColor = autoRotate ? 'var(--accent)' : ''; });
+$('btn-walk').addEventListener('click', () => {
+  if (walkTimer) return;
+  let e = 1.0; const n = 2.0; personId = bridge.upsertPerson(0n, 99n, e, n, 0.0);
+  walkTimer = setInterval(() => {
+    e += 0.4; if (e > 8.4) { clearInterval(walkTimer); walkTimer = null; return; }
+    bridge.upsertPerson(personId, 99n, e, n, 0.0);
+    const steps = [0.5,1.0,1.5,2.0].map((d,i)=>({ point:{east_m:e+d, north_m:n+(i%2?0.35:-0.25), up_m:0}, probability:0.92-i*0.2 }));
+    overlayPrims = bridge.trajectoryOverlay(99n, e, n, 0.0, steps);
+    rebuild();
+  }, 240);
+});
+$('btn-reset').addEventListener('click', () => {
+  if (walkTimer) { clearInterval(walkTimer); walkTimer = null; }
+  overlayPrims = []; bridge = new WorldgraphBridge(window.__rvf); rebuild();
+  $('audit').innerHTML = '<p class="empty">Click any element in the scene to audit it.</p>';
+});
+
+function buildLegend() {
+  const items = [['Room','#39d353'],['Zone','#19d3e6'],['Doorway','#ffd91a'],['Wall','#aab0bf'],
+    ['WiFi CSI','#ff4d4d'],['mmWave','#ff9d1a'],['UWB','#4d8bff'],['Person · anon','#19e0ff'],['OccWorld path','#46e05a']];
+  $('legend').innerHTML = items.map(([l,c]) => `<div class="row"><span class="sw" style="background:${c}; color:${c}"></span>${l}</div>`).join('');
 }
+
+function onResize() { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); }
+addEventListener('resize', onResize); onResize();
+
+let frame = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  if (autoRotate) { const t = frame++ * 0.0016; camera.position.x = 4.5 + Math.cos(t)*12; camera.position.z = -2 + Math.sin(t)*15; }
+  controls.update(); composer.render();
+}
+animate();
 
 (async () => {
   try {
     await init();
-    $('s-wasm').innerHTML = 'wasm <b style="color:var(--accent)">ready</b>';
-    await boot();
-    window.__ready = true; // signal for the screenshot harness
+    $('s-wasm').textContent = 'ready';
+    window.__rvf = await (await fetch('./sample-twin.json')).text();
+    bridge = new WorldgraphBridge(window.__rvf);
+    rebuild(); buildLegend();
+    $('boot').style.opacity = '0'; setTimeout(()=>$('boot')?.remove(), 600);
+    setTimeout(()=>{ $('hint').style.opacity='1'; setTimeout(()=>$('hint').style.opacity='0', 4200); }, 700);
+    window.__ready = true;
   } catch (e) {
-    const b = document.createElement('div');
-    b.className = 'banner err'; b.id = 'status';
-    b.textContent = 'WASM load failed: ' + (e && e.message || e);
-    document.body.prepend(b);
     window.__error = String(e);
+    const b = document.createElement('div'); b.className='banner'; b.textContent='WASM/3D init failed: '+(e?.message||e);
+    document.body.prepend(b); $('boot')?.remove();
   }
 })();
 </script>
