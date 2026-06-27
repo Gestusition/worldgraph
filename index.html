@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WorldGraph × SuperSplat — WASM bridge harness</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #11161f; --panel2: #161c28; --line: #232c3d;
+    --text: #d7e0ee; --muted: #7f8ca3; --accent: #2fd6c6; --warn: #ffd166;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); }
+  #app { display: grid; grid-template-columns: 1fr 340px; grid-template-rows: auto 1fr; height: 100vh; }
+  header { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px;
+    padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  header .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line);
+    padding: 2px 8px; border-radius: 999px; }
+  header .spacer { flex: 1; }
+  header .stat { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  header .stat b { color: var(--accent); }
+  #stage { position: relative; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  #legend { position: absolute; left: 14px; bottom: 14px; background: rgba(17,22,31,.86);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px); }
+  #legend .row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin: 3px 0; }
+  #legend .sw { width: 12px; height: 12px; border-radius: 3px; }
+  #toolbar { position: absolute; right: 14px; top: 14px; display: flex; gap: 8px; }
+  button { font: inherit; font-size: 12px; color: var(--text); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; cursor: pointer; }
+  button:hover { border-color: var(--accent); color: #fff; }
+  aside { background: var(--panel); border-left: 1px solid var(--line); padding: 16px; overflow-y: auto; }
+  aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 0 0 10px; }
+  .empty { color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .card { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .card .kind { display: inline-block; font-family: var(--mono); font-size: 11px; color: #0b0e14;
+    background: var(--accent); padding: 1px 7px; border-radius: 5px; margin-bottom: 8px; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .card .summary { font-size: 13px; color: var(--text); line-height: 1.5; margin: 0 0 12px; }
+  .kv { display: grid; grid-template-columns: 132px 1fr; gap: 6px 10px; font-size: 12.5px; align-items: start; }
+  .kv .k { color: var(--muted); font-family: var(--mono); font-size: 11px; line-height: 1.4;
+    overflow-wrap: anywhere; }
+  .kv .v { color: var(--text); overflow-wrap: anywhere; }
+  .evidence { margin-top: 12px; }
+  .evidence .e { font-family: var(--mono); font-size: 11.5px; color: var(--warn);
+    background: rgba(255,209,102,.08); border: 1px solid rgba(255,209,102,.2);
+    border-radius: 5px; padding: 3px 7px; margin: 4px 4px 0 0; display: inline-block; }
+  .chip { display: block; width: 100%; text-align: left; margin: 6px 0; padding: 9px 11px;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  .chip:hover { border-color: var(--accent); }
+  .chip .ck { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+  .chip .ct { font-size: 13px; color: var(--text); margin-top: 2px; }
+  #status { grid-column: 1 / -1; }
+  .banner { font-family: var(--mono); font-size: 12px; padding: 8px 18px; }
+  .banner.err { background: #3a1620; color: #ff8095; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>WorldGraph <span style="color:var(--muted)">×</span> SuperSplat</h1>
+    <span class="tag">WASM bridge · top-down ENU view</span>
+    <div class="spacer"></div>
+    <span class="stat">nodes <b id="s-nodes">–</b></span>
+    <span class="stat">primitives <b id="s-prims">–</b></span>
+    <span class="stat" id="s-wasm">wasm <b>loading…</b></span>
+  </header>
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="toolbar">
+      <button id="btn-walk">▶ Simulate person + OccWorld path</button>
+      <button id="btn-reset">↺ Reset</button>
+    </div>
+    <div id="legend"></div>
+  </div>
+  <aside>
+    <h2>Click-to-audit</h2>
+    <div id="audit"><p class="empty">Click any element on the floor to see <b>why the system believes it exists</b> — the privacy-aware provenance card assembled by the Rust core.</p></div>
+    <h2 style="margin-top:22px">Beliefs &amp; events</h2>
+    <div id="abstract" class="empty">—</div>
+  </aside>
+</div>
+
+<script type="module">
+import init, { WorldgraphBridge } from './worldgraph-wasm/worldgraph_wasm.js';
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('c');
+const ctx = canvas.getContext('2d');
+
+// ---- ENU top-down camera (PlayCanvas pos is [x=east, y=up, z=-north]) ----
+// We project to screen using east→x, north→y(up). One world metre = PPM px.
+let PPM = 70, originX = 0, originY = 0;
+const enuFromPrim = (p) => ({ e: p.position[0], n: -p.position[2] }); // undo z=-north
+const toScreen = (e, n) => [originX + e * PPM, originY - n * PPM];
+const rgba = (c) => `rgba(${(c[0]*255)|0},${(c[1]*255)|0},${(c[2]*255)|0},${c[3]})`;
+
+let bridge = null, prims = [], picks = [], hover = -1, overlay = [], walkTimer = null, personId = 0n;
+
+function fit() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = r.width * dpr; canvas.height = r.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Centre the scene: bounds over all primitives.
+  const xs = [], ys = [];
+  for (const p of prims) { const {e,n} = enuFromPrim(p); xs.push(e); ys.push(n); if (p.to){ xs.push(p.to[0]); ys.push(-p.to[2]); } }
+  const minE = Math.min(...xs, 0), maxE = Math.max(...xs, 5);
+  const minN = Math.min(...ys, 0), maxN = Math.max(...ys, 4);
+  const cw = r.width - 80, ch = r.height - 80;
+  PPM = Math.max(24, Math.min(cw / (maxE - minE + 2), ch / (maxN - minN + 2)));
+  originX = (r.width - (maxE + minE) * PPM) / 2;
+  originY = (r.height + (maxN + minN) * PPM) / 2;
+  draw();
+}
+
+function drawGrid() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  ctx.lineWidth = 1; ctx.strokeStyle = '#161d29';
+  for (let e = -10; e <= 30; e++) { const [x] = toScreen(e, 0); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, r.height); ctx.stroke(); }
+  for (let n = -10; n <= 30; n++) { const [, y] = toScreen(0, n); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(r.width, y); ctx.stroke(); }
+  // origin marker
+  const [ox, oy] = toScreen(0, 0);
+  ctx.strokeStyle = '#33415a';
+  ctx.beginPath(); ctx.moveTo(ox-8, oy); ctx.lineTo(ox+8, oy); ctx.moveTo(ox, oy-8); ctx.lineTo(ox, oy+8); ctx.stroke();
+  ctx.fillStyle = '#4a5b75'; ctx.font = '11px var(--mono)'; ctx.fillText('ENU origin (E→, N↑)', ox + 10, oy - 8);
+}
+
+function shapePath(p) {
+  const {e, n} = enuFromPrim(p);
+  const [x, y] = toScreen(e, n);
+  picks.push({ id: p.id, kind: p.kind, x, y, p });
+  ctx.lineWidth = 2;
+  if (p.shape === 'line' && p.to) {
+    const [x2, y2] = toScreen(p.to[0], -p.to[2]);
+    ctx.strokeStyle = rgba(p.color); ctx.lineWidth = p.kind === 'wall' ? 5 : 3;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2); ctx.stroke();
+    picks[picks.length-1].seg = [x, y, x2, y2];
+    return;
+  }
+  if (p.shape === 'box') {
+    const w = Math.abs(p.scale[0]) * PPM, h = Math.abs(p.scale[2]) * PPM;
+    ctx.fillStyle = rgba(p.color); ctx.strokeStyle = rgba([p.color[0],p.color[1],p.color[2],Math.min(1,p.color[3]+0.5)]);
+    ctx.beginPath(); ctx.rect(x - w/2, y - h/2, w, h); ctx.fill(); ctx.stroke();
+    picks[picks.length-1].box = [x - w/2, y - h/2, w, h];
+    return;
+  }
+  // circular footprints + point markers
+  let radius = 6;
+  if (p.shape === 'cylinder') radius = Math.abs(p.scale[0]) / 2 * PPM;
+  else if (p.shape === 'capsule') radius = Math.abs(p.scale[0]) / 2 * PPM;
+  else if (p.shape === 'sphere') radius = Math.max(7, Math.abs(p.scale[0]) * PPM);
+  ctx.fillStyle = rgba(p.color); ctx.strokeStyle = rgba([p.color[0],p.color[1],p.color[2],1]);
+  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  picks[picks.length-1].r = Math.max(radius, 9);
+}
+
+function draw() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  ctx.clearRect(0, 0, r.width, r.height);
+  drawGrid();
+  picks = [];
+  // Draw filled footprints first (rooms/zones), then lines, then markers, then overlay.
+  const order = (p) => ({ room:0, zone:1, doorway:2, wall:3, object_anchor:4, sensor:5, person_track:6, trajectory:7 }[p.kind] ?? 4);
+  const ordered = [...prims].sort((a,b) => order(a) - order(b));
+  for (const p of ordered) shapePath(p);
+  for (const p of overlay) shapePath(p);
+  // labels for non-line markers
+  ctx.font = '11px var(--mono)'; ctx.textBaseline = 'middle';
+  for (const pk of picks) {
+    if (pk.seg) continue;
+    if (['sensor','person_track','object_anchor'].includes(pk.kind)) {
+      ctx.fillStyle = '#aeb9cc'; ctx.fillText(pk.p.label, pk.x + (pk.r||8) + 4, pk.y);
+    } else if (pk.box && (pk.kind === 'room')) {
+      ctx.fillStyle = '#dfe7f2'; ctx.font = '12px var(--font)';
+      ctx.fillText(pk.p.label, pk.box[0] + 8, pk.box[1] + 14); ctx.font = '11px var(--mono)';
+    }
+  }
+  // hover ring
+  if (hover >= 0 && picks[hover]) {
+    const pk = picks[hover];
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([4,3]);
+    if (pk.box) ctx.strokeRect(pk.box[0]-3, pk.box[1]-3, pk.box[2]+6, pk.box[3]+6);
+    else if (pk.r) { ctx.beginPath(); ctx.arc(pk.x, pk.y, pk.r+4, 0, Math.PI*2); ctx.stroke(); }
+    ctx.setLineDash([]);
+  }
+}
+
+function pickAt(mx, my) {
+  // markers/circles take priority, then boxes (topmost = drawn last).
+  for (let i = picks.length - 1; i >= 0; i--) {
+    const pk = picks[i];
+    if (pk.r && Math.hypot(mx - pk.x, my - pk.y) <= pk.r + 4) return i;
+  }
+  for (let i = picks.length - 1; i >= 0; i--) {
+    const pk = picks[i];
+    if (pk.box) { const [bx,by,bw,bh] = pk.box; if (mx>=bx && mx<=bx+bw && my>=by && my<=by+bh) return i; }
+  }
+  return -1;
+}
+
+function showAudit(id) {
+  const card = bridge.getProvenance(BigInt(id));
+  if (!card) { $('audit').innerHTML = '<p class="empty">No provenance for this element.</p>'; return; }
+  const fields = card.fields.map(f => `<div class="k">${f.key}</div><div class="v">${f.value}</div>`).join('');
+  const ev = card.evidence.length
+    ? `<div class="evidence"><h2 style="margin-bottom:6px">Evidence chain</h2>${card.evidence.map(e=>`<span class="e">${e}</span>`).join('')}</div>` : '';
+  $('audit').innerHTML = `<div class="card"><span class="kind">${card.kind}</span>
+    <h3>${card.title}</h3><p class="summary">${card.summary}</p>
+    <div class="kv">${fields}</div>${ev}</div>`;
+}
+
+function refresh() {
+  prims = bridge.getRenderPrimitives();
+  $('s-nodes').textContent = bridge.nodeCount();
+  $('s-prims').textContent = prims.length + overlay.length;
+  buildAbstract();
+  fit();
+}
+
+function buildAbstract() {
+  // Abstract nodes (beliefs/events/rf-links) carry provenance but have no
+  // geometry — surface them as clickable rows so their audit card is reachable.
+  const drawable = new Set(['room','zone','wall','doorway','sensor','person_track','object_anchor']);
+  const all = bridge.getAllNodes().filter(n => !drawable.has(n.kind));
+  if (!all.length) { $('abstract').innerHTML = '<span class="empty">none</span>'; return; }
+  $('abstract').innerHTML = all.map(n => {
+    const t = n.kind === 'semantic_state' ? n.statement
+            : n.kind === 'event' ? n.event_type : `${n.kind} #${n.id}`;
+    return `<button class="chip" data-id="${n.id}"><div class="ck">${n.kind}</div><div class="ct">${t}</div></button>`;
+  }).join('');
+  $('abstract').querySelectorAll('.chip').forEach(b =>
+    b.addEventListener('click', () => showAudit(Number(b.dataset.id))));
+}
+
+function buildLegend() {
+  const items = [
+    ['Room', '#00ff0040'], ['Zone', '#00e6ff30'], ['Doorway', '#ffd91a80'],
+    ['Wall', '#9999a6'], ['WiFi CSI', '#ff3333'], ['mmWave', '#ff9919'],
+    ['UWB', '#3373ff'], ['Person (anon)', '#00d9ff'], ['OccWorld path', '#33cc33'],
+  ];
+  $('legend').innerHTML = items.map(([l,c]) => `<div class="row"><span class="sw" style="background:${c}"></span>${l}</div>`).join('');
+}
+
+// ---- interaction ----
+canvas.addEventListener('mousemove', (ev) => {
+  const r = canvas.getBoundingClientRect();
+  const h = pickAt(ev.clientX - r.left, ev.clientY - r.top);
+  if (h !== hover) { hover = h; canvas.style.cursor = h >= 0 ? 'pointer' : 'crosshair'; draw(); }
+});
+canvas.addEventListener('click', (ev) => {
+  const r = canvas.getBoundingClientRect();
+  const h = pickAt(ev.clientX - r.left, ev.clientY - r.top);
+  if (h >= 0) showAudit(picks[h].id);
+});
+window.addEventListener('resize', fit);
+
+$('btn-walk').addEventListener('click', () => {
+  if (walkTimer) return;
+  // Move a live person east across the rooms and draw an OccWorld forecast ahead.
+  let e = 1.0; const n = 2.0;
+  personId = bridge.upsertPerson(0n, 99n, e, n, 0.0);
+  walkTimer = setInterval(() => {
+    e += 0.4;
+    if (e > 8.5) { clearInterval(walkTimer); walkTimer = null; return; }
+    bridge.upsertPerson(personId, 99n, e, n, 0.0);
+    const steps = [0.5,1.0,1.5,2.0].map((d,i) => ({ point: { east_m: e+d, north_m: n + (i%2?0.3:-0.2), up_m: 0 }, probability: 0.9 - i*0.2 }));
+    overlay = bridge.trajectoryOverlay(99n, e, n, 0.0, steps);
+    prims = bridge.getRenderPrimitives();
+    $('s-prims').textContent = prims.length + overlay.length;
+    draw();
+  }, 220);
+});
+$('btn-reset').addEventListener('click', async () => {
+  if (walkTimer) { clearInterval(walkTimer); walkTimer = null; }
+  overlay = []; await boot();
+});
+
+// Test hook: audit the first rendered element of a given kind (for E2E).
+window.__auditKind = (kind) => {
+  const pk = picks.find(p => p.kind === kind);
+  if (pk) { showAudit(pk.id); return true; }
+  return false;
+};
+
+async function boot() {
+  const rvf = await (await fetch('./sample-twin.json')).text();
+  bridge = new WorldgraphBridge(rvf);
+  overlay = [];
+  refresh();
+  buildLegend();
+}
+
+(async () => {
+  try {
+    await init();
+    $('s-wasm').innerHTML = 'wasm <b style="color:var(--accent)">ready</b>';
+    await boot();
+    window.__ready = true; // signal for the screenshot harness
+  } catch (e) {
+    const b = document.createElement('div');
+    b.className = 'banner err'; b.id = 'status';
+    b.textContent = 'WASM load failed: ' + (e && e.message || e);
+    document.body.prepend(b);
+    window.__error = String(e);
+  }
+})();
+</script>
+</body>
+</html>
