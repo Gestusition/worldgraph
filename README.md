@@ -15,6 +15,16 @@
 
 ---
 
+## 🌐 Live demo — the twin in your browser
+
+[![WorldGraph × SuperSplat — live 3D demo](docs/demo.png)](https://ruvnet.github.io/worldgraph/)
+
+**▶ [Open the live demo →](https://ruvnet.github.io/worldgraph/)**
+
+The WorldGraph semantic twin rendered in 3D over a [SuperSplat](https://github.com/playcanvas/supersplat)-style scene — compiled to **WebAssembly** and running **entirely client-side** (no backend). Drag to orbit, click any element for its privacy-aware **provenance card**, and hit *Simulate* to see the OccWorld occupancy forecast. Person tracks carry no identity by construction.
+
+---
+
 ## Two ways to use it
 
 ### 🤖 The AI agent — `npx worldgraphs`
