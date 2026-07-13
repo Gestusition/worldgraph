@@ -1,15 +1,15 @@
-# worldgraph
+# KD-worldgraph
 
 **A privacy-aware environmental digital twin — and an AI agent that helps you build one.**
 
-`worldgraph` is two things in one project:
+`KD-worldgraph` is two things in one project:
 
 1. **A Rust library** that models a physical space as a typed, provenance-tracked graph — rooms, zones, sensors, people, and *beliefs* about what's happening — geospatially grounded and able to **forecast occupancy**.
-2. **An AI coding agent** (`npx worldgraphs`) — architect → implement → review → test — that helps you build digital twins and spatial/sensor applications on top of it.
+2. **An AI coding agent** (`npx KD-worldgraphs`) — architect → implement → review → test — that helps you build digital twins and spatial/sensor applications on top of it.
 
 <sub>**Keywords:** digital twin · world model · environmental digital twin · spatial computing · indoor positioning · sensor fusion · occupancy modeling · ambient intelligence · knowledge graph · scene graph · WiFi sensing · RF sensing · privacy-by-design · provenance · geospatial · occupancy forecasting · Rust · AI coding agent · agent harness</sub>
 
-[![npm](https://img.shields.io/npm/v/worldgraphs.svg)](https://www.npmjs.com/package/worldgraphs)
+[![npm](https://img.shields.io/npm/v/KD-worldgraphs.svg)](https://www.npmjs.com/package/KD-worldgraphs)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
 [![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](#-the-library--rust-crates)
 
@@ -17,32 +17,32 @@
 
 ## 🌐 Live demo — the twin in your browser
 
-[![WorldGraph × SuperSplat — live 3D demo](https://raw.githubusercontent.com/ruvnet/worldgraph/main/docs/demo.png)](https://ruvnet.github.io/worldgraph/)
+[![KD-worldgraph × SuperSplat — live 3D demo](https://raw.githubusercontent.com/ruvnet/KD-worldgraph/main/docs/demo.png)](https://ruvnet.github.io/KD-worldgraph/)
 
-**▶ [Open the live demo →](https://ruvnet.github.io/worldgraph/)**
+**▶ [Open the live demo →](https://ruvnet.github.io/KD-worldgraph/)**
 
-The WorldGraph semantic twin rendered in 3D over a [SuperSplat](https://github.com/playcanvas/supersplat)-style scene — compiled to **WebAssembly** and running **entirely client-side** (no backend). Drag to orbit, click any element for its privacy-aware **provenance card**, and hit *Simulate* to see the OccWorld occupancy forecast. Person tracks carry no identity by construction.
+The KD-worldgraph semantic twin rendered in 3D over a [SuperSplat](https://github.com/playcanvas/supersplat)-style scene — compiled to **WebAssembly** and running **entirely client-side** (no backend). Drag to orbit, click any element for its privacy-aware **provenance card**, and hit *Simulate* to see the OccWorld occupancy forecast. Person tracks carry no identity by construction.
 
 ---
 
 ## Two ways to use it
 
-### 🤖 The AI agent — `npx worldgraphs`
+### 🤖 The AI agent — `npx KD-worldgraphs`
 
 A focused coding harness (architect / implementer / reviewer / test-writer) that drops into your AI host and helps you design, build, review, and test digital-twin code.
 
 ```bash
-npx worldgraphs init       # wire the agents into your AI host (Claude Code, Codex, Copilot, …)
-npx worldgraphs doctor     # health check
+npx KD-worldgraphs init       # wire the agents into your AI host (Claude Code, Codex, Copilot, …)
+npx KD-worldgraphs doctor     # health check
 
 # or install globally:
-npm i -g worldgraphs
-worldgraphs init
+npm i -g KD-worldgraphs
+KD-worldgraphs init
 ```
 
-> **Why `worldgraphs` (plural)?** npm reserves the bare name `worldgraph` (too similar to
-> the existing `world-graph` package), so the npm package is published as `worldgraphs`.
-> You can also run it straight from this repo: `npx ruvnet/worldgraph`.
+> **Why `KD-worldgraphs` (plural)?** npm reserves the bare name `KD-worldgraph` (too similar to
+> the existing `world-graph` package), so the npm package is published as `KD-worldgraphs`.
+> You can also run it straight from this repo: `npx ruvnet/KD-worldgraph`.
 
 Then ask your host to design or implement a change — the four agents run an opinionated pipeline so you get a plan, clean code, a bug-hunting review, and the missing tests. Ships adapters for **9 hosts**: Claude Code, Codex, Copilot, OpenCode, GitHub Actions, pi-dev, Hermes, OpenClaw, RVM.
 
@@ -56,20 +56,20 @@ Then ask your host to design or implement a change — the four agents run an op
 ### 📦 The library — Rust crates
 
 ```bash
-cargo add wifi-densepose-worldgraph   # the typed digital-twin graph
+cargo add wifi-densepose-KD-worldgraph   # the typed digital-twin graph
 ```
 
 | crate | role |
 |-------|------|
 | [`wifi-densepose-geo`](./wifi-densepose-geo) | **Geospatial grounding** — IP geolocation, satellite tiles, SRTM elevation, OSM buildings/roads, ENU↔geo transforms |
-| [`wifi-densepose-worldgraph`](./wifi-densepose-worldgraph) | **The digital twin** — a `petgraph` graph of typed nodes + relations; provenance-mandatory semantic beliefs; JSON persistence |
+| [`wifi-densepose-KD-worldgraph`](./wifi-densepose-KD-worldgraph) | **The digital twin** — a `petgraph` graph of typed nodes + relations; provenance-mandatory semantic beliefs; JSON persistence |
 | [`wifi-densepose-worldmodel`](./wifi-densepose-worldmodel) | **Predictive layer** — bridges person-track history to an OccWorld occupancy model and returns trajectory priors |
 
 ---
 
 ## What is an "environmental digital twin"?
 
-A digital twin is a live, queryable model of a real space. `worldgraph` builds one as a **typed graph** — rooms, zones, walls, doorways, sensors, RF links, person tracks, object anchors, events, and semantic-state *beliefs* — connected by typed relations (`observes`, `located_in`, `adjacent_to`, `supports`, `contradicts`, `derived_from`, `privacy_limited_by`).
+A digital twin is a live, queryable model of a real space. `KD-worldgraph` builds one as a **typed graph** — rooms, zones, walls, doorways, sensors, RF links, person tracks, object anchors, events, and semantic-state *beliefs* — connected by typed relations (`observes`, `located_in`, `adjacent_to`, `supports`, `contradicts`, `derived_from`, `privacy_limited_by`).
 
 It stores **what is believed about the space**, not raw sensor frames — and **every belief is auditable** back to the evidence that produced it.
 
@@ -84,7 +84,7 @@ It stores **what is believed about the space**, not raw sensor frames — and **
 ### Where it sits
 
 ```
-sensor fusion  →  worldgraph (digital twin)  →  semantic / agent layer
+sensor fusion  →  KD-worldgraph (digital twin)  →  semantic / agent layer
   fused beliefs     typed belief graph            queries, reasoning, eval
                           │
                           └─→ worldmodel → occupancy forecast / trajectory priors
