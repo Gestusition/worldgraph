@@ -60,12 +60,11 @@ impl OccWorldBridge {
         &self,
         request: OccupancyWorldModelRequest,
     ) -> Result<OccupancyWorldModelResponse, WorldModelError> {
-        timeout(
-            Duration::from_secs(TIMEOUT_S),
-            self.send_recv(request),
-        )
-        .await
-        .map_err(|_| WorldModelError::Timeout { timeout_s: TIMEOUT_S })?
+        timeout(Duration::from_secs(TIMEOUT_S), self.send_recv(request))
+            .await
+            .map_err(|_| WorldModelError::Timeout {
+                timeout_s: TIMEOUT_S,
+            })?
     }
 
     /// Non-unix platforms have no Unix-domain sockets. The OccWorld bridge is a

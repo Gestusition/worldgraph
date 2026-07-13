@@ -108,8 +108,14 @@ impl WorldGraph {
         to: WorldId,
         edge: WorldEdge,
     ) -> Result<(), WorldGraphError> {
-        let f = *self.index.get(&from).ok_or(WorldGraphError::UnknownNode(from))?;
-        let t = *self.index.get(&to).ok_or(WorldGraphError::UnknownNode(to))?;
+        let f = *self
+            .index
+            .get(&from)
+            .ok_or(WorldGraphError::UnknownNode(from))?;
+        let t = *self
+            .index
+            .get(&to)
+            .ok_or(WorldGraphError::UnknownNode(to))?;
         self.inner.add_edge(f, t, edge);
         Ok(())
     }
@@ -141,7 +147,11 @@ impl WorldGraph {
     #[must_use]
     pub fn room_for_area(&self, area_id: &str) -> Option<WorldId> {
         self.inner.node_weights().find_map(|n| match n {
-            WorldNode::Room { id, area_id: Some(a), .. } if a == area_id => Some(*id),
+            WorldNode::Room {
+                id,
+                area_id: Some(a),
+                ..
+            } if a == area_id => Some(*id),
             _ => None,
         })
     }
@@ -220,9 +230,11 @@ impl WorldGraph {
             .inner
             .node_weights()
             .filter_map(|n| match n {
-                WorldNode::SemanticState { id, valid_from_unix_ms, .. } => {
-                    Some((*valid_from_unix_ms, id.0))
-                }
+                WorldNode::SemanticState {
+                    id,
+                    valid_from_unix_ms,
+                    ..
+                } => Some((*valid_from_unix_ms, id.0)),
                 _ => None,
             })
             .collect();
@@ -368,7 +380,11 @@ mod tests {
     use crate::model::{EnuPoint, SensorModality, WorldEdge, ZoneBoundsEnu};
 
     fn enu(e: f64, n: f64) -> EnuPoint {
-        EnuPoint { east_m: e, north_m: n, up_m: 0.0 }
+        EnuPoint {
+            east_m: e,
+            north_m: n,
+            up_m: 0.0,
+        }
     }
 
     fn living_room() -> WorldNode {
@@ -376,7 +392,12 @@ mod tests {
             id: WorldId::UNASSIGNED,
             area_id: Some("living_room".into()),
             name: "Living Room".into(),
-            bounds_enu: ZoneBoundsEnu::Rectangle { min_e: 0.0, min_n: 0.0, max_e: 5.0, max_n: 4.0 },
+            bounds_enu: ZoneBoundsEnu::Rectangle {
+                min_e: 0.0,
+                min_n: 0.0,
+                max_e: 5.0,
+                max_n: 4.0,
+            },
             floor: 0,
         }
     }
@@ -392,7 +413,12 @@ mod tests {
             id,
             area_id: Some("living_room".into()),
             name: "Lounge".into(),
-            bounds_enu: ZoneBoundsEnu::Rectangle { min_e: 0.0, min_n: 0.0, max_e: 5.0, max_n: 4.0 },
+            bounds_enu: ZoneBoundsEnu::Rectangle {
+                min_e: 0.0,
+                min_n: 0.0,
+                max_e: 5.0,
+                max_n: 4.0,
+            },
             floor: 0,
         });
         assert_eq!(g.node_count(), 1);
@@ -409,8 +435,15 @@ mod tests {
             position: enu(1.0, 1.0),
             modality: SensorModality::WifiCsi,
         });
-        g.add_edge(sensor, room, WorldEdge::Observes { quality: 0.9, last_seen_unix_ms: 1 })
-            .unwrap();
+        g.add_edge(
+            sensor,
+            room,
+            WorldEdge::Observes {
+                quality: 0.9,
+                last_seen_unix_ms: 1,
+            },
+        )
+        .unwrap();
 
         assert_eq!(g.room_for_area("living_room"), Some(room));
         assert_eq!(g.observed_by(sensor), vec![room]);
@@ -420,8 +453,18 @@ mod tests {
     fn add_edge_unknown_endpoint_errors() {
         let mut g = WorldGraph::new(GeoRegistration::default());
         let room = g.upsert_node(living_room());
-        let err = g.add_edge(room, WorldId(999), WorldEdge::Observes { quality: 1.0, last_seen_unix_ms: 0 });
-        assert!(matches!(err, Err(WorldGraphError::UnknownNode(WorldId(999)))));
+        let err = g.add_edge(
+            room,
+            WorldId(999),
+            WorldEdge::Observes {
+                quality: 1.0,
+                last_seen_unix_ms: 0,
+            },
+        );
+        assert!(matches!(
+            err,
+            Err(WorldGraphError::UnknownNode(WorldId(999)))
+        ));
     }
 
     #[test]
@@ -434,7 +477,8 @@ mod tests {
             last_position: enu(2.0, 2.0),
             reid_embedding_ref: None,
         });
-        g.add_edge(person, room, WorldEdge::LocatedIn { since_unix_ms: 100 }).unwrap();
+        g.add_edge(person, room, WorldEdge::LocatedIn { since_unix_ms: 100 })
+            .unwrap();
         assert_eq!(g.contents_of(room), vec![person]);
     }
 
@@ -455,14 +499,19 @@ mod tests {
         };
         let s1 = g.add_semantic_state("present".into(), 0.9, 11, prov.clone(), &[event]);
         // DerivedFrom edge to the evidence event exists.
-        assert!(g.neighbors(s1).iter().any(|(to, e)| *to == event
-            && matches!(e, WorldEdge::DerivedFrom { .. })));
+        assert!(g
+            .neighbors(s1)
+            .iter()
+            .any(|(to, e)| *to == event && matches!(e, WorldEdge::DerivedFrom { .. })));
 
         let s2 = g.add_semantic_state("absent".into(), 0.6, 12, prov, &[event]);
         g.add_contradiction(s1, s2, 0.3, "flag:ts".into()).unwrap();
         // Both beliefs retained; contradiction queryable.
         assert!(g.node(s1).is_some() && g.node(s2).is_some());
-        assert!(g.neighbors(s1).iter().any(|(_, e)| matches!(e, WorldEdge::Contradicts { .. })));
+        assert!(g
+            .neighbors(s1)
+            .iter()
+            .any(|(_, e)| matches!(e, WorldEdge::Contradicts { .. })));
     }
 
     #[test]
@@ -531,13 +580,31 @@ mod tests {
             position: enu(0.0, 0.0),
             modality: SensorModality::WifiCsi,
         });
-        g.add_edge(sensor, room, WorldEdge::Observes { quality: 1.0, last_seen_unix_ms: 0 }).unwrap();
-        g.add_edge(sensor, person, WorldEdge::Observes { quality: 1.0, last_seen_unix_ms: 0 }).unwrap();
+        g.add_edge(
+            sensor,
+            room,
+            WorldEdge::Observes {
+                quality: 1.0,
+                last_seen_unix_ms: 0,
+            },
+        )
+        .unwrap();
+        g.add_edge(
+            sensor,
+            person,
+            WorldEdge::Observes {
+                quality: 1.0,
+                last_seen_unix_ms: 0,
+            },
+        )
+        .unwrap();
 
         // StrictNoIdentity: rooms observable, person_tracks suppressed.
-        let rollup = g.apply_privacy_mode("StrictNoIdentity", "SuppressIdentity", |_modality, node_kind| {
-            node_kind != "person_track"
-        });
+        let rollup = g.apply_privacy_mode(
+            "StrictNoIdentity",
+            "SuppressIdentity",
+            |_modality, node_kind| node_kind != "person_track",
+        );
         assert_eq!(rollup.allowed_pairs, 1);
         assert_eq!(rollup.denied_pairs, vec![(sensor, person)]);
         assert_eq!(rollup.suppressed_nodes, vec![person]);
@@ -553,7 +620,15 @@ mod tests {
             position: enu(0.0, 0.0),
             modality: SensorModality::WifiCsi,
         });
-        g.add_edge(sensor, room, WorldEdge::Observes { quality: 0.8, last_seen_unix_ms: 5 }).unwrap();
+        g.add_edge(
+            sensor,
+            room,
+            WorldEdge::Observes {
+                quality: 0.8,
+                last_seen_unix_ms: 5,
+            },
+        )
+        .unwrap();
 
         let bytes = g.to_json().unwrap();
         let g2 = WorldGraph::from_json(&bytes).unwrap();

@@ -113,7 +113,10 @@ mod tests {
             alt: 0.0,
         };
         let d = haversine(&a, &b);
-        assert!(d.is_finite(), "near-antipodal haversine must be finite, got {d}");
+        assert!(
+            d.is_finite(),
+            "near-antipodal haversine must be finite, got {d}"
+        );
         // Half-circumference is ~20_037 km; result must be close to that.
         assert!(
             (19_000_000.0..21_000_000.0).contains(&d),

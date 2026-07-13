@@ -72,10 +72,22 @@ impl ZoneBoundsEnu {
     #[must_use]
     pub fn contains(&self, p: &EnuPoint) -> bool {
         match self {
-            Self::Rectangle { min_e, min_n, max_e, max_n } => {
-                p.east_m >= *min_e && p.east_m <= *max_e && p.north_m >= *min_n && p.north_m <= *max_n
+            Self::Rectangle {
+                min_e,
+                min_n,
+                max_e,
+                max_n,
+            } => {
+                p.east_m >= *min_e
+                    && p.east_m <= *max_e
+                    && p.north_m >= *min_n
+                    && p.north_m <= *max_n
             }
-            Self::Circle { center_e, center_n, radius_m } => {
+            Self::Circle {
+                center_e,
+                center_n,
+                radius_m,
+            } => {
                 let de = p.east_m - center_e;
                 let dn = p.north_m - center_n;
                 (de * de + dn * dn).sqrt() <= *radius_m
@@ -95,8 +107,7 @@ fn point_in_polygon(px: f64, py: f64, verts: &[(f64, f64)]) -> bool {
     for i in 0..verts.len() {
         let (xi, yi) = verts[i];
         let (xj, yj) = verts[j];
-        let intersect = ((yi > py) != (yj > py))
-            && (px < (xj - xi) * (py - yi) / (yj - yi) + xi);
+        let intersect = ((yi > py) != (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi);
         if intersect {
             inside = !inside;
         }

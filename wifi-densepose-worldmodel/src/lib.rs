@@ -221,7 +221,12 @@ pub fn persons_from_worldgraph(graph: &WorldGraph) -> Vec<PersonPosition> {
             let east_m = pos.get("east_m")?.as_f64()?;
             let north_m = pos.get("north_m")?.as_f64()?;
             let up_m = pos.get("up_m")?.as_f64()?;
-            Some(PersonPosition { track_id, east_m, north_m, up_m })
+            Some(PersonPosition {
+                track_id,
+                east_m,
+                north_m,
+                up_m,
+            })
         })
         .collect()
 }
@@ -253,8 +258,18 @@ mod tests {
         let prior = TrajectoryPrior {
             track_id: 42,
             waypoints: vec![
-                TrajectoryWaypoint { e: 1.0, n: 2.0, u: 0.0, t_s: 0.1 },
-                TrajectoryWaypoint { e: 1.1, n: 2.1, u: 0.0, t_s: 0.2 },
+                TrajectoryWaypoint {
+                    e: 1.0,
+                    n: 2.0,
+                    u: 0.0,
+                    t_s: 0.1,
+                },
+                TrajectoryWaypoint {
+                    e: 1.1,
+                    n: 2.1,
+                    u: 0.0,
+                    t_s: 0.2,
+                },
             ],
         };
         let json = serde_json::to_string(&prior).expect("serialize");
@@ -282,8 +297,7 @@ mod tests {
             prediction_steps: 15,
         };
         let json = serde_json::to_string(&req).expect("serialize");
-        let decoded: OccupancyWorldModelRequest =
-            serde_json::from_str(&json).expect("deserialize");
+        let decoded: OccupancyWorldModelRequest = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(decoded.prediction_steps, 15);
         assert_eq!(decoded.past_frames.len(), 1);
     }
@@ -294,7 +308,12 @@ mod tests {
             future_frames: vec![],
             trajectory_priors: vec![TrajectoryPrior {
                 track_id: 1,
-                waypoints: vec![TrajectoryWaypoint { e: 0.0, n: 0.0, u: 0.0, t_s: 0.0 }],
+                waypoints: vec![TrajectoryWaypoint {
+                    e: 0.0,
+                    n: 0.0,
+                    u: 0.0,
+                    t_s: 0.0,
+                }],
             }],
             confidence: 0.82,
             model_id: "occworld-dummy-v0".into(),

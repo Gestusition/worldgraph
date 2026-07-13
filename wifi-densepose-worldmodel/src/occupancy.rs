@@ -177,7 +177,7 @@ mod tests {
         let bounds = default_bounds();
         let persons = vec![PersonPosition {
             track_id: 2,
-            east_m: 99.0,  // well outside max_e=10
+            east_m: 99.0, // well outside max_e=10
             north_m: 99.0,
             up_m: 100.0,
         }];
@@ -191,8 +191,18 @@ mod tests {
     fn multiple_persons_independent_voxels() {
         let bounds = default_bounds();
         let persons = vec![
-            PersonPosition { track_id: 1, east_m: -5.0, north_m: -5.0, up_m: 0.5 },
-            PersonPosition { track_id: 2, east_m: 5.0,  north_m: 5.0,  up_m: 1.5 },
+            PersonPosition {
+                track_id: 1,
+                east_m: -5.0,
+                north_m: -5.0,
+                up_m: 0.5,
+            },
+            PersonPosition {
+                track_id: 2,
+                east_m: 5.0,
+                north_m: 5.0,
+                up_m: 1.5,
+            },
         ];
         let g = worldgraph_to_occupancy(&persons, &bounds, 0.1);
         let person_count = g.voxels.iter().filter(|&&v| v == CLASS_PERSON).count();
